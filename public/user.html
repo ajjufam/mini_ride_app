@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>User</title>
+</head>
+<body>
+  <h1>User Page</h1>
+  <button onclick="requestRide()">Request Ride</button>
+  <p id="status"></p>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    socket.emit("register-user", "user1");
+
+    function requestRide() {
+      socket.emit("request-ride", "user1");
+      document.getElementById("status").innerText = "Requesting ride...";
+    }
+
+    socket.on("ride-confirmed", (data) => {
+      document.getElementById("status").innerText = `Ride confirmed with ${data.driverId}`;
+      console.log("Route:", data.route);
+    });
+
+    socket.on("no-drivers", () => {
+      document.getElementById("status").innerText = "No drivers available!";
+    });
+  </script>
+</body>
+</html>

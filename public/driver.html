@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Driver</title>
+  <style>
+    .history-section {
+      margin-top: 20px;
+      border-top: 1px solid #ccc;
+      padding-top: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    #request-status {
+      margin: 10px 0;
+      padding: 10px;
+      border: 1px solid #eee;
+      background-color: #f9f9f9;
+    }
+  </style>
+</head>
+<body>
+  <h1>Driver Page</h1>
+  <p id="driver-id"></p>
+  
+  <div id="current-request">
+    <h3>Current Request</h3>
+    <div id="request-status">No active requests</div>
+    <button id="accept-btn" onclick="respond(true)" style="display:none;">Accept</button>
+    <button id="reject-btn" onclick="respond(false)" style="display:none;">Reject</button>
+  </div>
+
+  <div class="history-section">
+    <h3>Ignored Requests</h3>
+    <table id="ignored-table">
+      <thead>
+        <tr>
+          <th>User ID</th>
+          <th>Time</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="history-section">
+    <h3>Rejected Requests</h3>
+    <table id="rejected-table">
+      <thead>
+        <tr>
+          <th>User ID</th>
+          <th>Time</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const driverId = params.get("id") || "driver1";
+    document.getElementById("driver-id").innerText = "Driver ID: " + driverId;
+
+    const socket = io();
+    socket.emit("register-driver", driverId);
+
+    let currentRequest = null;
+
+    socket.on("ride-request", (data) => {
+      currentRequest = data;
+      document.getElementById("request-status").innerText = `Ride request from ${data.userId}`;
+      document.getElementById("accept-btn").style.display = "inline";
+      document.getElementById("reject-btn").style.display = "inline";
+    });
+
+    socket.on("request-expired", () => {
+      if (currentRequest) {
+        addToTable('ignored', currentRequest.userId);
+        currentRequest = null;
+        document.getElementById("request-status").innerText = "Request expired (ignored)";
+        document.getElementById("accept-btn").style.display = "none";
+        document.getElementById("reject-btn").style.display = "none";
+      }
+    });
+
+    socket.on("ride-confirmed", (data) => {
+      document.getElementById("request-status").innerText = `Ride confirmed! Heading to user ${data.userId}...`;
+      document.getElementById("accept-btn").style.display = "none";
+      document.getElementById("reject-btn").style.display = "none";
+    });
+
+    function respond(accepted) {
+      if (!currentRequest) return;
+      
+      socket.emit("driver-response", { driverId, accepted });
+      const action = accepted ? 'accepted' : 'rejected';
+      if (!accepted) {
+        addToTable('rejected', currentRequest.userId);
+      }
+      document.getElementById("request-status").innerText = `Request ${action}`;
+      currentRequest = null;
+      document.getElementById("accept-btn").style.display = "none";
+      document.getElementById("reject-btn").style.display = "none";
+    }
+
+    function addToTable(type, userId) {
+      const table = document.getElementById(`${type}-table`).getElementsByTagName('tbody')[0];
+      const row = table.insertRow();
+      const cell1 = row.insertCell(0);
+      const cell2 = row.insertCell(1);
+      cell1.innerHTML = userId;
+      cell2.innerHTML = new Date().toLocaleTimeString();
+    }
+  </script>
+</body>
+</html>
